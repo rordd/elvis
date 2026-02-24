@@ -60,6 +60,7 @@ func (p *ProviderPool) Get(provider, model string) (LLMProvider, error) {
 		return nil, fmt.Errorf("provider pool: create %s: %w", key, err)
 	}
 
+	fmt.Printf("[pool] created provider for key=%s\n", key)
 	p.providers[key] = prov
 	return prov, nil
 }

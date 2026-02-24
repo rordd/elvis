@@ -172,7 +172,10 @@ func (fc *FallbackChain) Execute(
 		}
 
 		// Retriable error: mark failure and continue to next candidate.
-		fc.cooldown.MarkFailure(candidate.Provider, failErr.Reason)
+		// Skip cooldown for ruleengine — "no match" is normal operation, not a failure.
+		if candidate.Provider != "ruleengine" {
+			fc.cooldown.MarkFailure(candidate.Provider, failErr.Reason)
+		}
 		result.Attempts = append(result.Attempts, FallbackAttempt{
 			Provider: candidate.Provider,
 			Model:    candidate.Model,

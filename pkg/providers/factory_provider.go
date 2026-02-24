@@ -156,7 +156,7 @@ func CreateProviderFromConfig(cfg *config.ModelConfig) (LLMProvider, string, err
 			return nil, "", fmt.Errorf("api_base (rules file path) is required for ruleengine protocol")
 		}
 		skillsDir := cfg.Workspace // reuse workspace field for skills directory path
-		provider, err := NewRuleEngineProvider(rulesFile, "", skillsDir)
+		provider, err := NewRuleEngineProvider(rulesFile, "", skillsDir, cfg.MaxInputLen)
 		if err != nil {
 			return nil, "", err
 		}

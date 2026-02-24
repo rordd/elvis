@@ -425,6 +425,7 @@ type ModelConfig struct {
 	// Optional optimizations
 	RPM            int    `json:"rpm,omitempty"`              // Requests per minute limit
 	MaxTokensField string `json:"max_tokens_field,omitempty"` // Field name for max tokens (e.g., "max_completion_tokens")
+	MaxInputLen    int    `json:"max_input_length,omitempty"` // Max input rune length for rule engine matching (0 = default 100)
 }
 
 // Validate checks if the ModelConfig has all required fields.

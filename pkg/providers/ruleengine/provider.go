@@ -17,16 +17,21 @@ type (
 )
 
 // Provider implements the LLMProvider interface using local pattern-matching rules.
+// DefaultMaxInputLen is the default max rune length for rule matching.
+// Inputs longer than this are skipped (likely summarization/system text).
+const DefaultMaxInputLen = 100
+
 type Provider struct {
-	ruleSet  *RuleSet
-	logger   *InteractionLogger
-	resolver *SkillResolver
+	ruleSet     *RuleSet
+	logger      *InteractionLogger
+	resolver    *SkillResolver
+	maxInputLen int
 }
 
 // NewProvider creates a rule engine provider, loading rules from the given file path.
 // logFile may be empty to disable logging.
 // skillsDir may be empty to disable skill resolution (response-only mode).
-func NewProvider(rulesFile, logFile, skillsDir string) (*Provider, error) {
+func NewProvider(rulesFile, logFile, skillsDir string, maxInputLen int) (*Provider, error) {
 	rs := NewRuleSet()
 	if err := rs.LoadFromFile(rulesFile); err != nil {
 		return nil, fmt.Errorf("ruleengine: %w", err)
@@ -42,10 +47,15 @@ func NewProvider(rulesFile, logFile, skillsDir string) (*Provider, error) {
 		resolver = NewSkillResolver(skillsDir)
 	}
 
+	if maxInputLen <= 0 {
+		maxInputLen = DefaultMaxInputLen
+	}
+
 	return &Provider{
-		ruleSet:  rs,
-		logger:   logger,
-		resolver: resolver,
+		ruleSet:     rs,
+		logger:      logger,
+		resolver:    resolver,
+		maxInputLen: maxInputLen,
 	}, nil
 }
 
@@ -72,6 +82,16 @@ func (p *Provider) Chat(
 		return nil, &FailoverError{
 			Reason:  FailoverUnknown,
 			Wrapped: fmt.Errorf("no user message found"),
+		}
+	}
+
+	// Skip long inputs — voice/IoT commands are short. Long inputs are likely
+	// summarization, heartbeat, or system-generated text that may contain
+	// previously matched keywords. Configurable via max_input_length.
+	if p.maxInputLen > 0 && len([]rune(userInput)) > p.maxInputLen {
+		return nil, &FailoverError{
+			Reason:  FailoverUnknown,
+			Wrapped: fmt.Errorf("input too long (%d runes, max %d)", len([]rune(userInput)), p.maxInputLen),
 		}
 	}
 
