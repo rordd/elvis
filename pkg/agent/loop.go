@@ -37,6 +37,7 @@ type AgentLoop struct {
 	running        atomic.Bool
 	summarizing    sync.Map
 	fallback       *providers.FallbackChain
+	providerPool   *providers.ProviderPool
 	channelManager *channels.Manager
 }
 
@@ -69,13 +70,16 @@ func NewAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers
 		stateManager = state.NewManager(defaultAgent.Workspace)
 	}
 
+	pool := providers.NewProviderPool(cfg)
+
 	return &AgentLoop{
-		bus:         msgBus,
-		cfg:         cfg,
-		registry:    registry,
-		state:       stateManager,
-		summarizing: sync.Map{},
-		fallback:    fallbackChain,
+		bus:          msgBus,
+		cfg:          cfg,
+		registry:     registry,
+		state:        stateManager,
+		summarizing:  sync.Map{},
+		fallback:     fallbackChain,
+		providerPool: pool,
 	}
 }
 
@@ -522,8 +526,12 @@ func (al *AgentLoop) runLLMIteration(
 		callLLM := func() (*providers.LLMResponse, error) {
 			if len(agent.Candidates) > 1 && al.fallback != nil {
 				fbResult, fbErr := al.fallback.Execute(ctx, agent.Candidates,
-					func(ctx context.Context, provider, model string) (*providers.LLMResponse, error) {
-						return agent.Provider.Chat(ctx, messages, providerToolDefs, model, map[string]any{
+					func(ctx context.Context, candidateProvider, candidateModel string) (*providers.LLMResponse, error) {
+						p, err := al.providerPool.Get(candidateProvider, candidateModel)
+						if err != nil {
+							return nil, err
+						}
+						return p.Chat(ctx, messages, providerToolDefs, candidateModel, map[string]any{
 							"max_tokens":       agent.MaxTokens,
 							"temperature":      agent.Temperature,
 							"prompt_cache_key": agent.ID,
