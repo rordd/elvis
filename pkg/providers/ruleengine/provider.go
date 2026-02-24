@@ -69,6 +69,19 @@ func (p *Provider) Chat(
 	model string,
 	options map[string]any,
 ) (*LLMResponse, error) {
+	// If the last message is a tool result, the previous tool call already executed.
+	// Return the tool output as the final response to end the tool loop.
+	if len(messages) > 0 && messages[len(messages)-1].Role == "tool" {
+		toolOutput := messages[len(messages)-1].Content
+		if toolOutput == "" {
+			toolOutput = "완료되었습니다."
+		}
+		return &LLMResponse{
+			Content:      toolOutput,
+			FinishReason: "stop",
+		}, nil
+	}
+
 	// Extract last user message.
 	var userInput string
 	for i := len(messages) - 1; i >= 0; i-- {
