@@ -335,6 +335,14 @@ type ProvidersConfig struct {
 	Antigravity   ProviderConfig       `json:"antigravity"`
 	Qwen          ProviderConfig       `json:"qwen"`
 	Mistral       ProviderConfig       `json:"mistral"`
+	RuleEngine    RuleEngineConfig     `json:"ruleengine"`
+}
+
+// RuleEngineConfig holds configuration for the local rule engine provider.
+type RuleEngineConfig struct {
+	RulesFile string `json:"rules_file" env:"PICOCLAW_PROVIDERS_RULEENGINE_RULES_FILE"`
+	LogFile   string `json:"log_file"   env:"PICOCLAW_PROVIDERS_RULEENGINE_LOG_FILE"`
+	AutoLearn bool   `json:"auto_learn" env:"PICOCLAW_PROVIDERS_RULEENGINE_AUTO_LEARN"`
 }
 
 // IsEmpty checks if all provider configs are empty (no API keys or API bases set)
@@ -357,7 +365,8 @@ func (p ProvidersConfig) IsEmpty() bool {
 		p.GitHubCopilot.APIKey == "" && p.GitHubCopilot.APIBase == "" &&
 		p.Antigravity.APIKey == "" && p.Antigravity.APIBase == "" &&
 		p.Qwen.APIKey == "" && p.Qwen.APIBase == "" &&
-		p.Mistral.APIKey == "" && p.Mistral.APIBase == ""
+		p.Mistral.APIKey == "" && p.Mistral.APIBase == "" &&
+		p.RuleEngine.RulesFile == ""
 }
 
 // MarshalJSON implements custom JSON marshaling for ProvidersConfig
@@ -674,7 +683,8 @@ func (c *Config) HasProvidersConfig() bool {
 		v.GitHubCopilot.APIKey != "" || v.GitHubCopilot.APIBase != "" ||
 		v.Antigravity.APIKey != "" || v.Antigravity.APIBase != "" ||
 		v.Qwen.APIKey != "" || v.Qwen.APIBase != "" ||
-		v.Mistral.APIKey != "" || v.Mistral.APIBase != ""
+		v.Mistral.APIKey != "" || v.Mistral.APIBase != "" ||
+		v.RuleEngine.RulesFile != ""
 }
 
 // ValidateModelList validates all ModelConfig entries in the model_list.
