@@ -70,14 +70,19 @@ func (p *Provider) Chat(
 	options map[string]any,
 ) (*LLMResponse, error) {
 	// If the last message is a tool result, the previous tool call already executed.
-	// Return the tool output as the final response to end the tool loop.
+	// Find the original assistant response (natural language) from the rule match
+	// and return it instead of raw tool output.
 	if len(messages) > 0 && messages[len(messages)-1].Role == "tool" {
-		toolOutput := messages[len(messages)-1].Content
-		if toolOutput == "" {
-			toolOutput = "완료되었습니다."
+		// Look for the preceding assistant message with the natural language response.
+		responseText := "완료되었습니다."
+		for i := len(messages) - 2; i >= 0; i-- {
+			if messages[i].Role == "assistant" && messages[i].Content != "" {
+				responseText = messages[i].Content
+				break
+			}
 		}
 		return &LLMResponse{
-			Content:      toolOutput,
+			Content:      responseText,
 			FinishReason: "stop",
 		}, nil
 	}
