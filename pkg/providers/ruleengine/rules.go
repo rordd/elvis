@@ -11,22 +11,15 @@ import (
 
 // Rule represents a single pattern-matching rule.
 type Rule struct {
-	ID         string            `json:"id"`
-	Patterns   []string          `json:"patterns"`
-	Intent     string            `json:"intent"`
-	Extract    map[string]string `json:"extract,omitempty"`
-	Response   string            `json:"response"`
-	ToolCalls  []RuleToolCall    `json:"tool_calls,omitempty"`
-	Confidence float64           `json:"confidence,omitempty"`
-	Source     string            `json:"source,omitempty"`
+	ID       string            `json:"id"`
+	Patterns []string          `json:"patterns"`
+	Intent   string            `json:"intent"`
+	Extract  map[string]string `json:"extract,omitempty"`
+	Response string            `json:"response"`
+	Skill    string            `json:"skill,omitempty"`
+	Source   string            `json:"source,omitempty"`
 
 	compiled []*regexp.Regexp
-}
-
-// RuleToolCall defines a tool call to include in the response.
-type RuleToolCall struct {
-	Name      string         `json:"name"`
-	Arguments map[string]any `json:"arguments"`
 }
 
 // MatchResult holds the result of a successful rule match.

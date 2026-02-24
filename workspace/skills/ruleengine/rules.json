@@ -1,122 +1,80 @@
 [
   {
-    "id": "tv_channel",
+    "id": "tv_channel_set",
+    "intent": "tv.channel.set",
     "patterns": [
-      "채널\\s*(?P<channel>\\d+)\\s*(번|로).*(?:틀어|변경|바꿔)",
-      "(?:틀어|변경|바꿔).*채널\\s*(?P<channel>\\d+)"
+      "채널\\s*(?P<channel>\\d+)\\s*(?:번|로)?\\s*(?:틀어|변경|바꿔)?",
+      "(?P<channel>\\d+)번\\s*(?:틀어|보여|봐)"
     ],
-    "intent": "tv.channel.change",
+    "skill": "tv-control",
     "response": "채널을 {{channel}}번으로 변경합니다.",
-    "tool_calls": [
-      {
-        "name": "tv_control",
-        "arguments": {"action": "set_channel", "channel": "{{channel}}"}
-      }
-    ],
-    "confidence": 0.95,
-    "source": "builtin"
+    "source": "manual"
   },
   {
     "id": "tv_volume_up",
+    "intent": "tv.volume.up",
     "patterns": [
       "볼륨\\s*(?:올려|높여|키워|up)",
       "소리\\s*(?:올려|높여|키워|크게)"
     ],
-    "intent": "tv.volume.up",
+    "skill": "tv-control",
     "response": "볼륨을 올립니다.",
-    "tool_calls": [
-      {
-        "name": "tv_control",
-        "arguments": {"action": "volume_up"}
-      }
-    ],
-    "confidence": 0.9,
-    "source": "builtin"
+    "source": "manual"
   },
   {
     "id": "tv_volume_down",
+    "intent": "tv.volume.down",
     "patterns": [
       "볼륨\\s*(?:내려|낮춰|줄여|down)",
       "소리\\s*(?:내려|낮춰|줄여|작게)"
     ],
-    "intent": "tv.volume.down",
+    "skill": "tv-control",
     "response": "볼륨을 내립니다.",
-    "tool_calls": [
-      {
-        "name": "tv_control",
-        "arguments": {"action": "volume_down"}
-      }
-    ],
-    "confidence": 0.9,
-    "source": "builtin"
+    "source": "manual"
   },
   {
-    "id": "tv_power",
+    "id": "tv_power_toggle",
+    "intent": "tv.power.toggle",
     "patterns": [
       "TV\\s*(?:켜|꺼|전원)",
       "텔레비전\\s*(?:켜|꺼|전원)",
       "티비\\s*(?:켜|꺼|전원)"
     ],
-    "intent": "tv.power.toggle",
+    "skill": "tv-control",
     "response": "TV 전원을 전환합니다.",
-    "tool_calls": [
-      {
-        "name": "tv_control",
-        "arguments": {"action": "power_toggle"}
-      }
-    ],
-    "confidence": 0.95,
-    "source": "builtin"
+    "source": "manual"
   },
   {
     "id": "aircon_on",
+    "intent": "aircon.power.on",
     "patterns": [
       "에어컨\\s*(?:켜|틀어|가동)",
       "냉방\\s*(?:켜|틀어|시작)"
     ],
-    "intent": "aircon.power.on",
+    "skill": "iot-control",
     "response": "에어컨을 켭니다.",
-    "tool_calls": [
-      {
-        "name": "iot_control",
-        "arguments": {"device": "aircon", "action": "power_on"}
-      }
-    ],
-    "confidence": 0.9,
-    "source": "builtin"
+    "source": "manual"
   },
   {
-    "id": "aircon_temp",
+    "id": "aircon_temp_set",
+    "intent": "aircon.temp.set",
     "patterns": [
       "에어컨\\s*(?P<temp>\\d+)\\s*도",
       "온도\\s*(?P<temp>\\d+)\\s*도.*(?:설정|맞춰|변경)"
     ],
-    "intent": "aircon.temp.set",
+    "skill": "iot-control",
     "response": "에어컨 온도를 {{temp}}도로 설정합니다.",
-    "tool_calls": [
-      {
-        "name": "iot_control",
-        "arguments": {"device": "aircon", "action": "set_temp", "temperature": "{{temp}}"}
-      }
-    ],
-    "confidence": 0.9,
-    "source": "builtin"
+    "source": "manual"
   },
   {
     "id": "washer_start",
+    "intent": "washer.start",
     "patterns": [
       "세탁기\\s*(?:켜|돌려|시작|가동)",
       "빨래\\s*(?:해|돌려|시작)"
     ],
-    "intent": "washer.start",
+    "skill": "iot-control",
     "response": "세탁기를 시작합니다.",
-    "tool_calls": [
-      {
-        "name": "iot_control",
-        "arguments": {"device": "washer", "action": "start"}
-      }
-    ],
-    "confidence": 0.9,
-    "source": "builtin"
+    "source": "manual"
   }
 ]

@@ -12,8 +12,9 @@ type RuleEngineProvider struct {
 }
 
 // NewRuleEngineProvider creates a rule engine provider loading rules from rulesFile.
-func NewRuleEngineProvider(rulesFile, logFile string) (*RuleEngineProvider, error) {
-	p, err := ruleengine.NewProvider(rulesFile, logFile)
+// skillsDir may be empty to disable skill resolution.
+func NewRuleEngineProvider(rulesFile, logFile, skillsDir string) (*RuleEngineProvider, error) {
+	p, err := ruleengine.NewProvider(rulesFile, logFile, skillsDir)
 	if err != nil {
 		return nil, err
 	}

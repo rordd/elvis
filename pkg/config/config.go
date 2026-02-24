@@ -349,9 +349,10 @@ type ProvidersConfig struct {
 
 // RuleEngineConfig holds configuration for the local rule engine provider.
 type RuleEngineConfig struct {
-	RulesFile string `json:"rules_file" env:"PICOCLAW_PROVIDERS_RULEENGINE_RULES_FILE"`
-	LogFile   string `json:"log_file"   env:"PICOCLAW_PROVIDERS_RULEENGINE_LOG_FILE"`
-	AutoLearn bool   `json:"auto_learn" env:"PICOCLAW_PROVIDERS_RULEENGINE_AUTO_LEARN"`
+	RulesFile string `json:"rules_file"  env:"PICOCLAW_PROVIDERS_RULEENGINE_RULES_FILE"`
+	LogFile   string `json:"log_file"    env:"PICOCLAW_PROVIDERS_RULEENGINE_LOG_FILE"`
+	AutoLearn bool   `json:"auto_learn"  env:"PICOCLAW_PROVIDERS_RULEENGINE_AUTO_LEARN"`
+	SkillsDir string `json:"skills_dir"  env:"PICOCLAW_PROVIDERS_RULEENGINE_SKILLS_DIR"`
 }
 
 // IsEmpty checks if all provider configs are empty (no API keys or API bases set)

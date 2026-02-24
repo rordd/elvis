@@ -12,28 +12,27 @@ func writeTestRules(t *testing.T) string {
 	path := filepath.Join(dir, "rules.json")
 	data := []byte(`[
   {
-    "id": "tv_channel",
+    "id": "tv_channel_set",
     "patterns": ["채널\\s*(?P<channel>\\d+)\\s*(번|로).*(?:틀어|변경|바꿔)"],
-    "intent": "tv.channel.change",
+    "intent": "tv.channel.set",
+    "skill": "tv-control",
     "response": "채널을 {{channel}}번으로 변경합니다.",
-    "tool_calls": [{"name": "tv_control", "arguments": {"action": "set_channel", "channel": "{{channel}}"}}],
-    "confidence": 0.95,
     "source": "test"
   },
   {
     "id": "tv_volume_up",
     "patterns": ["볼륨\\s*(?:올려|높여|키워)"],
     "intent": "tv.volume.up",
+    "skill": "tv-control",
     "response": "볼륨을 올립니다.",
-    "confidence": 0.9,
     "source": "test"
   },
   {
-    "id": "aircon_temp",
+    "id": "aircon_temp_set",
     "patterns": ["에어컨\\s*(?P<temp>\\d+)\\s*도"],
     "intent": "aircon.temp.set",
+    "skill": "iot-control",
     "response": "에어컨 온도를 {{temp}}도로 설정합니다.",
-    "confidence": 0.9,
     "source": "test"
   }
 ]`)
@@ -61,14 +60,14 @@ func TestRuleSetMatch(t *testing.T) {
 			name:      "channel change",
 			input:     "채널 5번으로 틀어줘",
 			wantMatch: true,
-			wantID:    "tv_channel",
+			wantID:    "tv_channel_set",
 			wantVars:  map[string]string{"channel": "5"},
 		},
 		{
 			name:      "channel change two digits",
 			input:     "채널 11번으로 변경해줘",
 			wantMatch: true,
-			wantID:    "tv_channel",
+			wantID:    "tv_channel_set",
 			wantVars:  map[string]string{"channel": "11"},
 		},
 		{
@@ -81,7 +80,7 @@ func TestRuleSetMatch(t *testing.T) {
 			name:      "aircon temperature",
 			input:     "에어컨 24도로 맞춰",
 			wantMatch: true,
-			wantID:    "aircon_temp",
+			wantID:    "aircon_temp_set",
 			wantVars:  map[string]string{"temp": "24"},
 		},
 		{
@@ -157,5 +156,21 @@ func TestLoadFromFile_InvalidPattern(t *testing.T) {
 	err := rs.LoadFromFile(path)
 	if err == nil {
 		t.Fatal("expected error for invalid regex pattern")
+	}
+}
+
+func TestRuleSkillField(t *testing.T) {
+	path := writeTestRules(t)
+	rs := NewRuleSet()
+	if err := rs.LoadFromFile(path); err != nil {
+		t.Fatalf("LoadFromFile: %v", err)
+	}
+
+	result := rs.Match("볼륨 올려")
+	if result == nil {
+		t.Fatal("expected match")
+	}
+	if result.Rule.Skill != "tv-control" {
+		t.Errorf("skill = %q, want %q", result.Rule.Skill, "tv-control")
 	}
 }

@@ -9,22 +9,24 @@ import (
 )
 
 type (
-	ToolCall           = protocoltypes.ToolCall
-	FunctionCall       = protocoltypes.FunctionCall
-	LLMResponse        = protocoltypes.LLMResponse
-	Message            = protocoltypes.Message
-	ToolDefinition     = protocoltypes.ToolDefinition
+	ToolCall       = protocoltypes.ToolCall
+	FunctionCall   = protocoltypes.FunctionCall
+	LLMResponse    = protocoltypes.LLMResponse
+	Message        = protocoltypes.Message
+	ToolDefinition = protocoltypes.ToolDefinition
 )
 
 // Provider implements the LLMProvider interface using local pattern-matching rules.
 type Provider struct {
-	ruleSet *RuleSet
-	logger  *InteractionLogger
+	ruleSet  *RuleSet
+	logger   *InteractionLogger
+	resolver *SkillResolver
 }
 
 // NewProvider creates a rule engine provider, loading rules from the given file path.
 // logFile may be empty to disable logging.
-func NewProvider(rulesFile, logFile string) (*Provider, error) {
+// skillsDir may be empty to disable skill resolution (response-only mode).
+func NewProvider(rulesFile, logFile, skillsDir string) (*Provider, error) {
 	rs := NewRuleSet()
 	if err := rs.LoadFromFile(rulesFile); err != nil {
 		return nil, fmt.Errorf("ruleengine: %w", err)
@@ -35,14 +37,21 @@ func NewProvider(rulesFile, logFile string) (*Provider, error) {
 		logger = NewInteractionLogger(logFile)
 	}
 
+	var resolver *SkillResolver
+	if skillsDir != "" {
+		resolver = NewSkillResolver(skillsDir)
+	}
+
 	return &Provider{
-		ruleSet: rs,
-		logger:  logger,
+		ruleSet:  rs,
+		logger:   logger,
+		resolver: resolver,
 	}, nil
 }
 
 // Chat extracts the last user message and matches it against loaded rules.
-// On match, it returns a templated response. On no match, it returns a FailoverError.
+// On match, it returns a templated response with skill-resolved tool calls.
+// On no match, it returns a FailoverError.
 func (p *Provider) Chat(
 	ctx context.Context,
 	messages []Message,
@@ -61,55 +70,55 @@ func (p *Provider) Chat(
 
 	if userInput == "" {
 		return nil, &FailoverError{
-			Reason: FailoverUnknown,
+			Reason:  FailoverUnknown,
 			Wrapped: fmt.Errorf("no user message found"),
 		}
 	}
 
+	fmt.Printf("[ruleengine] user input: %q (len=%d)\n", userInput, len(userInput))
 	result := p.ruleSet.Match(userInput)
+	fmt.Printf("[ruleengine] match result: %v\n", result != nil)
 	if result == nil {
 		return nil, &FailoverError{
-			Reason: FailoverUnknown,
+			Reason:  FailoverUnknown,
 			Wrapped: fmt.Errorf("no rule matched input"),
 		}
 	}
 
 	responseText := TemplateResponse(result.Rule.Response, result.Variables)
 
-	// Build tool calls if the rule defines them.
-	var toolCalls []ToolCall
-	for i, rtc := range result.Rule.ToolCalls {
-		// Template variable substitution in tool call arguments.
-		args := make(map[string]any, len(rtc.Arguments))
-		for k, v := range rtc.Arguments {
-			if s, ok := v.(string); ok {
-				args[k] = TemplateResponse(s, result.Variables)
-			} else {
-				args[k] = v
-			}
-		}
-
-		argsJSON, _ := json.Marshal(args)
-		toolCalls = append(toolCalls, ToolCall{
-			ID:   fmt.Sprintf("rule_%s_%d", result.Rule.ID, i),
-			Name: rtc.Name,
-			Arguments: args,
-			Function: &FunctionCall{
-				Name:      rtc.Name,
-				Arguments: string(argsJSON),
-			},
-		})
-	}
-
 	resp := &LLMResponse{
 		Content:      responseText,
-		ToolCalls:    toolCalls,
 		FinishReason: "stop",
+	}
+
+	// Resolve skill command and build tool call.
+	if p.resolver != nil && result.Rule.Skill != "" {
+		command, skillDir, err := p.resolver.Resolve(result.Rule.Skill, result.Rule.Intent, result.Variables)
+		if err != nil {
+			fmt.Printf("[ruleengine] skill resolve error: %v\n", err)
+		} else {
+			argsJSON, _ := json.Marshal(map[string]any{
+				"command":     command,
+				"working_dir": skillDir,
+			})
+			resp.ToolCalls = []ToolCall{
+				{
+					ID:   fmt.Sprintf("skill_%s", result.Rule.ID),
+					Type: "function",
+					Function: &FunctionCall{
+						Name:      "exec",
+						Arguments: string(argsJSON),
+					},
+				},
+			}
+			resp.FinishReason = "tool_calls"
+		}
 	}
 
 	// Log the interaction.
 	if p.logger != nil {
-		p.logger.Log(userInput, responseText, toolCalls, result.Rule.Intent)
+		p.logger.Log(userInput, responseText, resp.ToolCalls, result.Rule.Intent)
 	}
 
 	return resp, nil
