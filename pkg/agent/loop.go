@@ -22,6 +22,7 @@ import (
 	"github.com/sipeed/picoclaw/pkg/constants"
 	"github.com/sipeed/picoclaw/pkg/logger"
 	"github.com/sipeed/picoclaw/pkg/providers"
+	"github.com/sipeed/picoclaw/pkg/providers/ruleengine"
 	"github.com/sipeed/picoclaw/pkg/routing"
 	"github.com/sipeed/picoclaw/pkg/skills"
 	"github.com/sipeed/picoclaw/pkg/state"
@@ -30,15 +31,16 @@ import (
 )
 
 type AgentLoop struct {
-	bus            *bus.MessageBus
-	cfg            *config.Config
-	registry       *AgentRegistry
-	state          *state.Manager
-	running        atomic.Bool
-	summarizing    sync.Map
-	fallback       *providers.FallbackChain
-	providerPool   *providers.ProviderPool
-	channelManager *channels.Manager
+	bus             *bus.MessageBus
+	cfg             *config.Config
+	registry        *AgentRegistry
+	state           *state.Manager
+	running         atomic.Bool
+	summarizing     sync.Map
+	fallback        *providers.FallbackChain
+	providerPool    *providers.ProviderPool
+	channelManager  *channels.Manager
+	ruleInterceptor *ruleengine.Interceptor
 }
 
 // processOptions configures how a message is processed
@@ -56,6 +58,8 @@ type processOptions struct {
 func NewAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers.LLMProvider) *AgentLoop {
 	registry := NewAgentRegistry(cfg, provider)
 
+	pool := providers.NewProviderPool(cfg)
+
 	// Register shared tools to all agents
 	registerSharedTools(cfg, msgBus, registry, provider)
 
@@ -70,16 +74,25 @@ func NewAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers
 		stateManager = state.NewManager(defaultAgent.Workspace)
 	}
 
-	pool := providers.NewProviderPool(cfg)
+	// Rule engine interceptor (optional, from config)
+	var interceptor *ruleengine.Interceptor
+	if reCfg := cfg.Providers.RuleEngine; reCfg.RulesFile != "" {
+		maxLen := 100
+		if ri, err := ruleengine.NewInterceptor(reCfg.RulesFile, reCfg.SkillsDir, maxLen); err == nil {
+			interceptor = ri
+			logger.InfoCF("agent", "Rule engine interceptor enabled", nil)
+		}
+	}
 
 	return &AgentLoop{
-		bus:          msgBus,
-		cfg:          cfg,
-		registry:     registry,
-		state:        stateManager,
-		summarizing:  sync.Map{},
-		fallback:     fallbackChain,
-		providerPool: pool,
+		bus:             msgBus,
+		cfg:             cfg,
+		registry:        registry,
+		state:           stateManager,
+		summarizing:     sync.Map{},
+		fallback:        fallbackChain,
+		providerPool:    pool,
+		ruleInterceptor: interceptor,
 	}
 }
 
@@ -324,6 +337,13 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 			"session_key": sessionKey,
 			"matched_by":  route.MatchedBy,
 		})
+
+	// Rule engine intercept: check before LLM call.
+	if al.ruleInterceptor != nil {
+		if resp, err := al.ruleInterceptor.TryMatch(ctx, msg.Content); err == nil && resp != "" {
+			return resp, nil
+		}
+	}
 
 	return al.runAgentLoop(ctx, agent, processOptions{
 		SessionKey:      sessionKey,
