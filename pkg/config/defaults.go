@@ -284,6 +284,7 @@ func DefaultConfig() *Config {
 		},
 		Tools: ToolsConfig{
 			Web: WebToolsConfig{
+				Proxy: "",
 				Brave: BraveConfig{
 					Enabled:    false,
 					APIKey:     "",
