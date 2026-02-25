@@ -2,8 +2,8 @@ name: Upstream Sync & Regression Test
 
 on:
   schedule:
-    # 매주 월요일 18:00 UTC (KST 03:00)
-    - cron: '0 18 * * 0'
+    # 매일 18:00 UTC (KST 03:00)
+    - cron: '0 18 * * *'
   workflow_dispatch: # 수동 실행 가능
 
 jobs:
@@ -31,11 +31,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # 머지 전 현재 커밋 기록
           echo "before=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
           echo "upstream=$(git rev-parse upstream/main)" >> $GITHUB_OUTPUT
-          
+
           # 머지 시도
           if git merge upstream/main --no-edit; then
             echo "conflict=false" >> $GITHUB_OUTPUT
@@ -91,5 +91,33 @@ jobs:
               body: `Upstream merge succeeded but tests failed.\n\nUpstream commit: \`${process.env.UPSTREAM_SHA}\`\n\nMerge was NOT pushed. Manual review needed.`,
               labels: ['upstream-sync', 'regression']
             })
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      # Telegram notifications
+      - name: Telegram - sync success
+        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'true'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
+            -d chat_id="8394492274" \
+            -d text="✅ PicoClaw upstream sync 완료 (upstream: ${UPSTREAM_SHA:0:7})"
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      - name: Telegram - merge conflict
+        if: steps.merge.outputs.conflict == 'true'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
+            -d chat_id="8394492274" \
+            -d text="⚠️ PicoClaw upstream sync conflict 발생 (upstream: ${UPSTREAM_SHA:0:7}). 수동 해결 필요."
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      - name: Telegram - test regression
+        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'false'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
+            -d chat_id="8394492274" \
+            -d text="🔴 PicoClaw upstream sync regression 감지 (upstream: ${UPSTREAM_SHA:0:7}). 머지 push 안 됨. 확인 필요."
         env:
           UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
