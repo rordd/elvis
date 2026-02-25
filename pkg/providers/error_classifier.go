@@ -2,15 +2,9 @@ package providers
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 )
-
-// isFailoverError checks if err is already a *FailoverError.
-func isFailoverError(err error, target **FailoverError) bool {
-	return errors.As(err, target)
-}
 
 // errorPattern defines a single pattern (string or regex) for error classification.
 type errorPattern struct {
@@ -122,23 +116,7 @@ func ClassifyError(err error, provider, model string) *FailoverError {
 		}
 	}
 
-	// Check if the error is already a FailoverError (e.g., from rule engine).
-	var failErr *FailoverError
-	if ok := isFailoverError(err, &failErr); ok {
-		return failErr
-	}
-
 	msg := strings.ToLower(err.Error())
-
-	// Rule engine no-match: always retriable fallback.
-	if strings.Contains(msg, "ruleengine failover") || strings.Contains(msg, "no rule matched") {
-		return &FailoverError{
-			Reason:   FailoverUnknown,
-			Provider: provider,
-			Model:    model,
-			Wrapped:  err,
-		}
-	}
 
 	// Image dimension/size errors: non-retriable, non-fallback.
 	if IsImageDimensionError(msg) || IsImageSizeError(msg) {

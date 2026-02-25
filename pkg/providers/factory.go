@@ -22,7 +22,6 @@ const (
 	providerTypeClaudeCLI
 	providerTypeCodexCLI
 	providerTypeGitHubCopilot
-	providerTypeRuleEngine
 )
 
 type providerSelection struct {
@@ -34,8 +33,6 @@ type providerSelection struct {
 	workspace       string
 	connectMode     string
 	enableWebSearch bool
-	rulesFile       string
-	logFile         string
 }
 
 func resolveProviderSelection(cfg *config.Config) (providerSelection, error) {
@@ -193,13 +190,6 @@ func resolveProviderSelection(cfg *config.Config) (providerSelection, error) {
 			}
 			sel.connectMode = cfg.Providers.GitHubCopilot.ConnectMode
 			return sel, nil
-		case "ruleengine":
-			if cfg.Providers.RuleEngine.RulesFile != "" {
-				sel.providerType = providerTypeRuleEngine
-				sel.rulesFile = cfg.Providers.RuleEngine.RulesFile
-				sel.logFile = cfg.Providers.RuleEngine.LogFile
-				return sel, nil
-			}
 		}
 	}
 

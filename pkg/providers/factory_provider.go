@@ -150,18 +150,6 @@ func CreateProviderFromConfig(cfg *config.ModelConfig) (LLMProvider, string, err
 		}
 		return provider, modelID, nil
 
-	case "ruleengine":
-		rulesFile := cfg.APIBase // reuse api_base field for rules file path
-		if rulesFile == "" {
-			return nil, "", fmt.Errorf("api_base (rules file path) is required for ruleengine protocol")
-		}
-		skillsDir := cfg.Workspace // reuse workspace field for skills directory path
-		provider, err := NewRuleEngineProvider(rulesFile, "", skillsDir, cfg.MaxInputLen)
-		if err != nil {
-			return nil, "", err
-		}
-		return provider, modelID, nil
-
 	default:
 		return nil, "", fmt.Errorf("unknown protocol %q in model %q", protocol, cfg.Model)
 	}
