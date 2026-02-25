@@ -51,11 +51,6 @@ func (p *ClaudeCliProvider) Chat(
 
 	if err := cmd.Run(); err != nil {
 		stderrStr := stderr.String()
-		// Log full debug info
-		fmt.Printf("[claude-cli] exit error: %v\n", err)
-		fmt.Printf("[claude-cli] stderr: %s\n", stderrStr)
-		fmt.Printf("[claude-cli] stdout: %s\n", stdout.String())
-		fmt.Printf("[claude-cli] args count: %d, prompt len: %d\n", len(args), len(prompt))
 		if stderrStr != "" {
 			return nil, fmt.Errorf("claude cli error: %s", stderrStr)
 		}
