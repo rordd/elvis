@@ -1,0 +1,95 @@
+name: Upstream Sync & Regression Test
+
+on:
+  schedule:
+    # 매주 월요일 00:00 UTC (KST 09:00)
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  sync-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/sipeed/picoclaw.git || true
+          git fetch upstream main
+
+      - name: Attempt merge
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 머지 전 현재 커밋 기록
+          echo "before=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "upstream=$(git rev-parse upstream/main)" >> $GITHUB_OUTPUT
+          
+          # 머지 시도
+          if git merge upstream/main --no-edit; then
+            echo "conflict=false" >> $GITHUB_OUTPUT
+          else
+            echo "conflict=true" >> $GITHUB_OUTPUT
+            git merge --abort
+          fi
+
+      - name: Build
+        if: steps.merge.outputs.conflict == 'false'
+        run: |
+          make deps
+          make build
+
+      - name: Run tests
+        if: steps.merge.outputs.conflict == 'false'
+        id: test
+        run: |
+          if make test 2>&1 | tee /tmp/test-output.txt; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push if tests pass
+        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'true'
+        run: git push origin main
+
+      - name: Notify on conflict
+        if: steps.merge.outputs.conflict == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Upstream sync conflict',
+              body: `Upstream merge failed due to conflicts.\n\nUpstream commit: \`${process.env.UPSTREAM_SHA}\`\n\nManual resolution needed.`,
+              labels: ['upstream-sync']
+            })
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      - name: Notify on test failure
+        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🔴 Upstream sync: regression detected',
+              body: `Upstream merge succeeded but tests failed.\n\nUpstream commit: \`${process.env.UPSTREAM_SHA}\`\n\nMerge was NOT pushed. Manual review needed.`,
+              labels: ['upstream-sync', 'regression']
+            })
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
