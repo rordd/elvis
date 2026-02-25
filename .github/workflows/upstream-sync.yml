@@ -31,12 +31,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 머지 전 현재 커밋 기록
           echo "before=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
           echo "upstream=$(git rev-parse upstream/main)" >> $GITHUB_OUTPUT
-
-          # 머지 시도
           if git merge upstream/main --no-edit; then
             echo "conflict=false" >> $GITHUB_OUTPUT
           else
@@ -46,9 +42,7 @@ jobs:
 
       - name: Build
         if: steps.merge.outputs.conflict == 'false'
-        run: |
-          make deps
-          make build
+        run: make deps && make build
 
       - name: Run tests
         if: steps.merge.outputs.conflict == 'false'
@@ -64,8 +58,38 @@ jobs:
         if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'true'
         run: git push origin main
 
-      - name: Notify on conflict
-        if: steps.merge.outputs.conflict == 'true'
+      # --- Telegram 알림 (먼저) ---
+      - name: Telegram - sync success
+        if: always() && steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'true'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
+            -d chat_id="8394492274" \
+            -d text="✅ Elvis upstream sync 완료 (upstream: ${UPSTREAM_SHA:0:7})"
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      - name: Telegram - merge conflict
+        if: always() && steps.merge.outputs.conflict == 'true'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
+            -d chat_id="8394492274" \
+            -d text="⚠️ Elvis upstream sync conflict (upstream: ${UPSTREAM_SHA:0:7}). 수동 해결 필요."
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      - name: Telegram - test regression
+        if: always() && steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'false'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
+            -d chat_id="8394492274" \
+            -d text="🔴 Elvis upstream sync regression (upstream: ${UPSTREAM_SHA:0:7}). 머지 안 됨. 확인 필요."
+        env:
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+
+      # --- GitHub Issue (선택적) ---
+      - name: Issue - conflict
+        if: always() && steps.merge.outputs.conflict == 'true'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
@@ -73,51 +97,24 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: '⚠️ Upstream sync conflict',
-              body: `Upstream merge failed due to conflicts.\n\nUpstream commit: \`${process.env.UPSTREAM_SHA}\`\n\nManual resolution needed.`,
+              body: `Upstream merge failed.\n\nUpstream: \`${process.env.UPSTREAM_SHA}\``,
               labels: ['upstream-sync']
             })
         env:
           UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
 
-      - name: Notify on test failure
-        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'false'
+      - name: Issue - regression
+        if: always() && steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'false'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🔴 Upstream sync: regression detected',
-              body: `Upstream merge succeeded but tests failed.\n\nUpstream commit: \`${process.env.UPSTREAM_SHA}\`\n\nMerge was NOT pushed. Manual review needed.`,
+              title: '🔴 Upstream sync regression',
+              body: `Tests failed after merge.\n\nUpstream: \`${process.env.UPSTREAM_SHA}\``,
               labels: ['upstream-sync', 'regression']
             })
-        env:
-          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
-
-      # Telegram notifications
-      - name: Telegram - sync success
-        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'true'
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
-            -d chat_id="8394492274" \
-            -d text="✅ PicoClaw upstream sync 완료 (upstream: ${UPSTREAM_SHA:0:7})"
-        env:
-          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
-
-      - name: Telegram - merge conflict
-        if: steps.merge.outputs.conflict == 'true'
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
-            -d chat_id="8394492274" \
-            -d text="⚠️ PicoClaw upstream sync conflict 발생 (upstream: ${UPSTREAM_SHA:0:7}). 수동 해결 필요."
-        env:
-          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
-
-      - name: Telegram - test regression
-        if: steps.merge.outputs.conflict == 'false' && steps.test.outputs.passed == 'false'
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot8578831991:AAGMfh4W8kXOGJjtAA0uRcEg2kO1Wc0-qvw/sendMessage" \
-            -d chat_id="8394492274" \
-            -d text="🔴 PicoClaw upstream sync regression 감지 (upstream: ${UPSTREAM_SHA:0:7}). 머지 push 안 됨. 확인 필요."
         env:
           UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
