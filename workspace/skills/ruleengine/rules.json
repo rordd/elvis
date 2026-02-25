@@ -7,7 +7,7 @@
       "(?P<channel>\\d+)번\\s*(?:틀어|보여|봐)"
     ],
     "skill": "tv-control",
-    "response": "채널을 {{channel}}번으로 변경합니다.",
+    "response": "{{channel}}번으로 돌린다! 📺",
     "source": "manual"
   },
   {
@@ -18,7 +18,7 @@
       "소리\\s*(?:올려|높여|키워|크게)"
     ],
     "skill": "tv-control",
-    "response": "볼륨을 올립니다.",
+    "response": "볼륨 올린다! 🔊",
     "source": "manual"
   },
   {
@@ -29,7 +29,7 @@
       "소리\\s*(?:내려|낮춰|줄여|작게)"
     ],
     "skill": "tv-control",
-    "response": "볼륨을 내립니다.",
+    "response": "볼륨 줄인다! 🔉",
     "source": "manual"
   },
   {
@@ -41,7 +41,7 @@
       "티비\\s*(?:켜|꺼|전원)"
     ],
     "skill": "tv-control",
-    "response": "TV 전원을 전환합니다.",
+    "response": "TV 전원 바꾼다! ⚡",
     "source": "manual"
   },
   {
@@ -52,7 +52,7 @@
       "냉방\\s*(?:켜|틀어|시작)"
     ],
     "skill": "iot-control",
-    "response": "에어컨을 켭니다.",
+    "response": "에어컨 켠다! 시원하게~ ❄️",
     "source": "manual"
   },
   {
@@ -63,7 +63,7 @@
       "온도\\s*(?P<temp>\\d+)\\s*도.*(?:설정|맞춰|변경)"
     ],
     "skill": "iot-control",
-    "response": "에어컨 온도를 {{temp}}도로 설정합니다.",
+    "response": "{{temp}}도로 맞춘다! 🌡️",
     "source": "manual"
   },
   {
@@ -74,7 +74,7 @@
       "빨래\\s*(?:해|돌려|시작)"
     ],
     "skill": "iot-control",
-    "response": "세탁기를 시작합니다.",
+    "response": "세탁기 돌린다! 🫧",
     "source": "manual"
   }
 ]

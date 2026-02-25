@@ -34,23 +34,29 @@ func (p *ClaudeCliProvider) Chat(
 	if systemPrompt != "" {
 		args = append(args, "--system-prompt", systemPrompt)
 	}
-	if model != "" && model != "claude-code" {
+	// Only pass --model for specific model names, not generic ones like "claude"
+	if model != "" && model != "claude-code" && model != "claude" {
 		args = append(args, "--model", model)
 	}
-	args = append(args, "-") // read from stdin
+	args = append(args, prompt) // pass prompt as argument instead of stdin
 
 	cmd := exec.CommandContext(ctx, p.command, args...)
 	if p.workspace != "" {
 		cmd.Dir = p.workspace
 	}
-	cmd.Stdin = bytes.NewReader([]byte(prompt))
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		if stderrStr := stderr.String(); stderrStr != "" {
+		stderrStr := stderr.String()
+		// Log full debug info
+		fmt.Printf("[claude-cli] exit error: %v\n", err)
+		fmt.Printf("[claude-cli] stderr: %s\n", stderrStr)
+		fmt.Printf("[claude-cli] stdout: %s\n", stdout.String())
+		fmt.Printf("[claude-cli] args count: %d, prompt len: %d\n", len(args), len(prompt))
+		if stderrStr != "" {
 			return nil, fmt.Errorf("claude cli error: %s", stderrStr)
 		}
 		return nil, fmt.Errorf("claude cli error: %w", err)
